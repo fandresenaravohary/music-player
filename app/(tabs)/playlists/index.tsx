@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import CustomPopup from './CustomPopup';
+import { useAudio } from '@/app/context/AudioContext';
 
 interface Playlist {
   id: string;
@@ -25,11 +25,10 @@ export default function PlaylistsScreen() {
   const [playlistName, setPlaylistName] = useState('');
   const [songs, setSongs] = useState<MediaLibrary.Asset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentSong, setCurrentSong] = useState<MediaLibrary.Asset | null>(null);
   const [selectedSong, setSelectedSong] = useState<MediaLibrary.Asset | null>(null);
-  const [isPopupVisible, setIsPopupVisible] = useState(false); // État pour la pop-up
+  const [isPopupVisible, setIsPopupVisible] = useState(false);
+
+  const { sound, isPlaying, currentSong, playSong, pauseSong, resumeSong, stopSong } = useAudio();
 
   const loadSongs = async () => {
     try {
@@ -79,7 +78,7 @@ export default function PlaylistsScreen() {
     setPlaylistName('');
 
     if (selectedSong) {
-      setIsPopupVisible(true); // Afficher la pop-up
+      setIsPopupVisible(true);
     }
   };
 
@@ -134,35 +133,9 @@ export default function PlaylistsScreen() {
     savePlaylists(updatedPlaylists);
   };
 
-  const playSong = async (song: MediaLibrary.Asset) => {
-    if (sound) {
-      await sound.unloadAsync();
-    }
-    const { sound: newSound } = await Audio.Sound.createAsync(
-      { uri: song.uri },
-      { shouldPlay: true }
-    );
-    setSound(newSound);
-    setCurrentSong(song);
-    setIsPlaying(true);
-
-    newSound.setOnPlaybackStatusUpdate((status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        handleSongFinished();
-      }
-    });
-  };
-
   const playPlaylist = async (playlist: Playlist) => {
     if (playlist.songs.length > 0) {
-      playSong(playlist.songs[0]);
-    }
-  };
-
-  const resumeSong = async () => {
-    if (sound) {
-      await sound.playAsync();
-      setIsPlaying(true);
+      await playSong(playlist.songs[0]);
     }
   };
 
@@ -173,45 +146,37 @@ export default function PlaylistsScreen() {
         const currentIndex = currentPlaylist.songs.findIndex((s) => s.id === currentSong.id);
         const nextSong = currentPlaylist.songs[currentIndex + 1];
         if (nextSong) {
-          playSong(nextSong);
+          await playSong(nextSong);
         } else {
-          setIsPlaying(false);
-          setCurrentSong(null);
+          await stopSong();
         }
       }
     }
   };
 
-  const playNextSong = () => {
+  const playNextSong = async () => {
     if (currentSong && playlists.length > 0) {
       const currentPlaylist = playlists.find((p) => p.songs.includes(currentSong));
       if (currentPlaylist) {
         const currentIndex = currentPlaylist.songs.findIndex((s) => s.id === currentSong.id);
         const nextSong = currentPlaylist.songs[currentIndex + 1];
         if (nextSong) {
-          playSong(nextSong);
+          await playSong(nextSong);
         }
       }
     }
   };
 
-  const playPreviousSong = () => {
+  const playPreviousSong = async () => {
     if (currentSong && playlists.length > 0) {
       const currentPlaylist = playlists.find((p) => p.songs.includes(currentSong));
       if (currentPlaylist) {
         const currentIndex = currentPlaylist.songs.findIndex((s) => s.id === currentSong.id);
         const previousSong = currentPlaylist.songs[currentIndex - 1];
         if (previousSong) {
-          playSong(previousSong);
+          await playSong(previousSong);
         }
       }
-    }
-  };
-
-  const pauseSong = async () => {
-    if (sound) {
-      await sound.pauseAsync();
-      setIsPlaying(false);
     }
   };
 
@@ -220,12 +185,12 @@ export default function PlaylistsScreen() {
       const selectedPlaylist = playlists[index];
       addSongToPlaylist(selectedPlaylist.id, selectedSong);
     }
-    setIsPopupVisible(false); // Fermer la pop-up
+    setIsPopupVisible(false);
   };
 
   const handleCancelPopup = () => {
-    setIsPopupVisible(false); // Fermer la pop-up
-    setSelectedSong(null); // Réinitialiser la chanson sélectionnée
+    setIsPopupVisible(false);
+    setSelectedSong(null);
   };
 
   useEffect(() => {
@@ -306,7 +271,6 @@ export default function PlaylistsScreen() {
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 onPress={() => {
-                  // console.log('Add button clicked for song:', item); // Debug log
                   setSelectedSong(item);
                   if (playlists.length === 0) {
                     Alert.alert(
@@ -315,7 +279,7 @@ export default function PlaylistsScreen() {
                     );
                     return;
                   }
-                  setIsPopupVisible(true); // Afficher la pop-up
+                  setIsPopupVisible(true);
                 }}
                 style={styles.addSongButton}
               >
@@ -330,20 +294,20 @@ export default function PlaylistsScreen() {
         <View style={styles.playerControls}>
           <TouchableOpacity
             onPress={playPreviousSong}
-            style={styles.createButton}
+            style={styles.controlButton}
           >
-            <Text style={styles.createButtonText}>Précédent</Text>
+            <Text style={styles.controlButtonText}>⏮ Précédent</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={isPlaying ? pauseSong : resumeSong}
-            style={styles.createButton}
+            style={styles.controlButton}
           >
-            <Text style={styles.createButtonText}>
-              {isPlaying ? 'Pause' : 'Lire'}
+            <Text style={styles.controlButtonText}>
+              {isPlaying ? '⏸ Pause' : '▶️ Lecture'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={playNextSong} style={styles.createButton}>
-            <Text style={styles.createButtonText}>Suivant</Text>
+          <TouchableOpacity onPress={playNextSong} style={styles.controlButton}>
+            <Text style={styles.controlButtonText}>⏭ Suivant</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -455,6 +419,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 20,
+  },
+  controlButton: {
+    backgroundColor: '#d3d3d3',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  controlButtonText: {
+    color: 'black',
+    fontWeight: 'bold',
   },
   deleteButton: {
     padding: 5,
