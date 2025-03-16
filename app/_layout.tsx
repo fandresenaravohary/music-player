@@ -1,11 +1,11 @@
-import React from 'react';
-import { View, Text, SafeAreaView } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native';
 import TabsNavigator from './TabNavigator';
 
 export default function Layout() {
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      {/* Vous pouvez ajouter ici des éléments globaux comme une barre de titre, etc. */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'black' }}>
+      <StatusBar style="dark" />
       <TabsNavigator />
     </SafeAreaView>
   );

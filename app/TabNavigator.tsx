@@ -1,8 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons'; // Si tu utilises Expo
+import { Ionicons } from '@expo/vector-icons';
 import SongsScreen from './(tabs)/songs/index';
-import PlaylistsScreen from './(tabs)/playlists/index';
+import PlaylistsScreen from './(tabs)/playlists/index'; // Importation par défaut
 import FavoritesScreen from './(tabs)/favorites/index';
 import ArtistsScreen from './(tabs)/artists/index';
 
@@ -12,8 +12,8 @@ export default function TabsNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: 'tomato', // Couleur active des icônes
-        tabBarInactiveTintColor: 'gray', // Couleur inactive des icônes
+        tabBarActiveTintColor: 'tomato',
+        tabBarInactiveTintColor: 'gray',
       }}
     >
       <Tab.Screen
@@ -27,7 +27,7 @@ export default function TabsNavigator() {
       />
       <Tab.Screen
         name="Playlists"
-        component={PlaylistsScreen}
+        component={PlaylistsScreen} // Utilisation correcte
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="list" size={size} color={color} />
