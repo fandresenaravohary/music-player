@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import CustomPopup from './CustomPopup';
+import { useAudio } from '@/app/context/AudioContext';
 
 interface Playlist {
   id: string;
@@ -25,11 +25,20 @@ export default function PlaylistsScreen() {
   const [playlistName, setPlaylistName] = useState('');
   const [songs, setSongs] = useState<MediaLibrary.Asset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentSong, setCurrentSong] = useState<MediaLibrary.Asset | null>(null);
   const [selectedSong, setSelectedSong] = useState<MediaLibrary.Asset | null>(null);
-  const [isPopupVisible, setIsPopupVisible] = useState(false); // État pour la pop-up
+  const [isPopupVisible, setIsPopupVisible] = useState(false);
+  const [showSongList, setShowSongList] = useState(false);
+
+  const { 
+    isPlaying, 
+    currentSong, 
+    playSong, 
+    pauseSong, 
+    resumeSong, 
+    stopSong,
+    playNextSong,
+    playPreviousSong
+  } = useAudio();
 
   const loadSongs = async () => {
     try {
@@ -79,7 +88,7 @@ export default function PlaylistsScreen() {
     setPlaylistName('');
 
     if (selectedSong) {
-      setIsPopupVisible(true); // Afficher la pop-up
+      setIsPopupVisible(true);
     }
   };
 
@@ -134,84 +143,15 @@ export default function PlaylistsScreen() {
     savePlaylists(updatedPlaylists);
   };
 
-  const playSong = async (song: MediaLibrary.Asset) => {
-    if (sound) {
-      await sound.unloadAsync();
-    }
-    const { sound: newSound } = await Audio.Sound.createAsync(
-      { uri: song.uri },
-      { shouldPlay: true }
-    );
-    setSound(newSound);
-    setCurrentSong(song);
-    setIsPlaying(true);
-
-    newSound.setOnPlaybackStatusUpdate((status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        handleSongFinished();
-      }
-    });
-  };
-
   const playPlaylist = async (playlist: Playlist) => {
     if (playlist.songs.length > 0) {
-      playSong(playlist.songs[0]);
+      await playSong(playlist.songs[0], playlist.songs, 0);
     }
   };
 
-  const resumeSong = async () => {
-    if (sound) {
-      await sound.playAsync();
-      setIsPlaying(true);
-    }
-  };
-
-  const handleSongFinished = async () => {
-    if (currentSong && playlists.length > 0) {
-      const currentPlaylist = playlists.find((p) => p.songs.includes(currentSong));
-      if (currentPlaylist) {
-        const currentIndex = currentPlaylist.songs.findIndex((s) => s.id === currentSong.id);
-        const nextSong = currentPlaylist.songs[currentIndex + 1];
-        if (nextSong) {
-          playSong(nextSong);
-        } else {
-          setIsPlaying(false);
-          setCurrentSong(null);
-        }
-      }
-    }
-  };
-
-  const playNextSong = () => {
-    if (currentSong && playlists.length > 0) {
-      const currentPlaylist = playlists.find((p) => p.songs.includes(currentSong));
-      if (currentPlaylist) {
-        const currentIndex = currentPlaylist.songs.findIndex((s) => s.id === currentSong.id);
-        const nextSong = currentPlaylist.songs[currentIndex + 1];
-        if (nextSong) {
-          playSong(nextSong);
-        }
-      }
-    }
-  };
-
-  const playPreviousSong = () => {
-    if (currentSong && playlists.length > 0) {
-      const currentPlaylist = playlists.find((p) => p.songs.includes(currentSong));
-      if (currentPlaylist) {
-        const currentIndex = currentPlaylist.songs.findIndex((s) => s.id === currentSong.id);
-        const previousSong = currentPlaylist.songs[currentIndex - 1];
-        if (previousSong) {
-          playSong(previousSong);
-        }
-      }
-    }
-  };
-
-  const pauseSong = async () => {
-    if (sound) {
-      await sound.pauseAsync();
-      setIsPlaying(false);
+  const playSongFromPlaylist = async (playlist: Playlist, songIndex: number) => {
+    if (playlist.songs.length > 0) {
+      await playSong(playlist.songs[songIndex], playlist.songs, songIndex);
     }
   };
 
@@ -220,12 +160,12 @@ export default function PlaylistsScreen() {
       const selectedPlaylist = playlists[index];
       addSongToPlaylist(selectedPlaylist.id, selectedSong);
     }
-    setIsPopupVisible(false); // Fermer la pop-up
+    setIsPopupVisible(false);
   };
 
   const handleCancelPopup = () => {
-    setIsPopupVisible(false); // Fermer la pop-up
-    setSelectedSong(null); // Réinitialiser la chanson sélectionnée
+    setIsPopupVisible(false);
+    setSelectedSong(null);
   };
 
   useEffect(() => {
@@ -234,79 +174,90 @@ export default function PlaylistsScreen() {
   }, []);
 
   if (loading) {
-    return <Text>Chargement des chansons...</Text>;
+    return <Text style={styles.loadingText}>Chargement des chansons...</Text>;
   }
 
   return (
     <View style={styles.container}>
-      <TextInput
-        value={playlistName}
-        onChangeText={setPlaylistName}
-        placeholder="Nom de la playlist"
-        style={styles.input}
-      />
-      <TouchableOpacity onPress={createPlaylist} style={styles.createButton}>
-        <Text style={styles.createButtonText}>Créer Playlist</Text>
-      </TouchableOpacity>
+      <Text style={styles.header}>Mes Playlists</Text>
+      <View style={styles.inputContainer}>
+        <TextInput
+          value={playlistName}
+          onChangeText={setPlaylistName}
+          placeholder="Nom de la playlist"
+          placeholderTextColor="#888"
+          style={styles.input}
+        />
+        <TouchableOpacity onPress={createPlaylist} style={styles.createButton}>
+          <Text style={styles.createButtonText}>Créer</Text>
+        </TouchableOpacity>
+      </View>
       {playlists.length > 0 ? (
         <FlatList
           data={playlists}
           renderItem={({ item }) => (
-            <View style={styles.playlistContainer}>
+            <View style={styles.playlistCard}>
               <View style={styles.playlistHeader}>
                 <TouchableOpacity
                   onPress={() => playPlaylist(item)}
-                  style={styles.playlistButton}
+                  style={styles.playlistTitleContainer}
                 >
-                  <Text style={styles.playlistName}>{item.name}</Text>
+                  <Text style={styles.playlistTitle}>{item.name}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => deletePlaylist(item.id)}
                   style={styles.deleteButton}
                 >
-                  <Ionicons name="trash" size={20} color="red" />
+                  <Ionicons name="trash" size={22} color="#ff4d4d" />
                 </TouchableOpacity>
               </View>
-              <FlatList
-                data={item.songs}
-                renderItem={({ item: song }) => (
-                  <View style={styles.songContainer}>
-                    <Text style={styles.songText}>{song.filename}</Text>
-                    <View style={styles.buttonContainer}>
-                      <TouchableOpacity
-                        onPress={() => removeSongFromPlaylist(item.id, song.id)}
-                        style={styles.deleteSongButton}
-                      >
-                        <Text style={styles.buttonText}>Supprimer</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => playSong(song)}
-                        style={styles.playSongButton}
-                      >
-                        <Text style={styles.buttonText}>Lire</Text>
-                      </TouchableOpacity>
+              {item.songs.length > 0 && (
+                <FlatList
+                  data={item.songs}
+                  renderItem={({ item: song, index }) => (
+                    <View style={styles.songRow}>
+                      <Text style={styles.songName}>{song.filename}</Text>
+                      <View style={styles.songActions}>
+                        <TouchableOpacity
+                          onPress={() => removeSongFromPlaylist(item.id, song.id)}
+                          style={styles.actionButton}
+                        >
+                          <Ionicons name="remove-circle" size={20} color="#ff4d4d" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => playSongFromPlaylist(item, index)}
+                          style={styles.actionButton}
+                        >
+                          <Ionicons name="play-circle" size={20} color="#4CAF50" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
-                )}
-                keyExtractor={(item, index) => `song-${item.id}-${index}`}
-              />
+                  )}
+                  keyExtractor={(song, index) => `song-${song.id}-${index}`}
+                />
+              )}
             </View>
           )}
           keyExtractor={(item, index) => `playlist-${item.id}-${index}`}
+          contentContainerStyle={styles.playlistList}
         />
       ) : (
-        <Text>Aucune playlist</Text>
+        <Text style={styles.emptyText}>Aucune playlist créée.</Text>
       )}
-      <Text style={styles.songListTitle}>Ajouter des chansons aux playlists :</Text>
-      <FlatList
-        data={songs}
-        renderItem={({ item }) => (
-          <View style={styles.songContainer}>
-            <Text style={styles.songText}>{item.filename}</Text>
-            <View style={styles.buttonContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Ajouter des chansons aux playlists :</Text>
+        <TouchableOpacity onPress={() => setShowSongList(!showSongList)} style={styles.toggleButton}>
+          <Ionicons name={showSongList ? "chevron-up" : "chevron-down"} size={24} color="#2196F3" />
+        </TouchableOpacity>
+      </View>
+      {showSongList && (
+        <FlatList
+          data={songs}
+          renderItem={({ item }) => (
+            <View style={styles.songCard}>
+              <Text style={styles.songCardText}>{item.filename}</Text>
               <TouchableOpacity
                 onPress={() => {
-                  // console.log('Add button clicked for song:', item); // Debug log
                   setSelectedSong(item);
                   if (playlists.length === 0) {
                     Alert.alert(
@@ -315,35 +266,40 @@ export default function PlaylistsScreen() {
                     );
                     return;
                   }
-                  setIsPopupVisible(true); // Afficher la pop-up
+                  setIsPopupVisible(true);
                 }}
-                style={styles.addSongButton}
+                style={styles.addButton}
               >
-                <Text style={styles.buttonText}>Ajouter</Text>
+                <Ionicons name="add-circle" size={24} color="#2196F3" />
               </TouchableOpacity>
             </View>
-          </View>
-        )}
-        keyExtractor={(item, index) => `song-${item.id}-${index}`}
-      />
+          )}
+          keyExtractor={(item, index) => `song-${item.id}-${index}`}
+          contentContainerStyle={styles.songList}
+        />
+      )}
       {currentSong && (
         <View style={styles.playerControls}>
-          <TouchableOpacity
-            onPress={playPreviousSong}
-            style={styles.createButton}
-          >
-            <Text style={styles.createButtonText}>Précédent</Text>
+          <TouchableOpacity onPress={playPreviousSong} style={styles.controlButton}>
+            <Ionicons name="play-back" size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>Précédent</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={isPlaying ? pauseSong : resumeSong}
-            style={styles.createButton}
+            style={styles.controlButton}
           >
-            <Text style={styles.createButtonText}>
-              {isPlaying ? 'Pause' : 'Lire'}
+            <Ionicons name={isPlaying ? "pause" : "play"} size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>
+              {isPlaying ? 'Pause' : 'Lecture'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={playNextSong} style={styles.createButton}>
-            <Text style={styles.createButtonText}>Suivant</Text>
+          <TouchableOpacity onPress={playNextSong} style={styles.controlButton}>
+            <Ionicons name="play-forward" size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>Suivant</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={stopSong} style={styles.controlButton}>
+            <Ionicons name="square" size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>Arrêt</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -360,22 +316,56 @@ export default function PlaylistsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#eef2f5',
+    padding: 15,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 15,
+    color: '#333',
+    textAlign: 'center',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    alignItems: 'center',
   },
   input: {
+    flex: 1,
+    height: 45,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    borderColor: '#ccc',
     borderWidth: 1,
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: 'white',
-    borderRadius: 5,
+    color: '#333',
   },
-  playlistContainer: {
-    marginBottom: 20,
-    backgroundColor: 'white',
-    padding: 10,
-    borderRadius: 5,
-    elevation: 3,
+  createButton: {
+    marginLeft: 10,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  createButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  playlistList: {
+    paddingBottom: 20,
+  },
+  playlistCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   playlistHeader: {
     flexDirection: 'row',
@@ -383,80 +373,101 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  playlistName: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  playlistTitleContainer: {
+    flex: 1,
   },
-  playlistButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    backgroundColor: '#d3d3d3',
-    borderRadius: 5,
+  playlistTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
   },
-  songContainer: {
-    marginBottom: 10,
-    padding: 10,
-    backgroundColor: 'white',
-    borderRadius: 5,
-    elevation: 1,
+  deleteButton: {
+    marginLeft: 10,
   },
-  songText: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  buttonContainer: {
+  songRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
   },
-  deleteSongButton: {
-    backgroundColor: '#ff4444',
-    padding: 10,
-    borderRadius: 5,
+  songName: {
+    fontSize: 16,
+    color: '#555',
     flex: 1,
-    marginRight: 5,
-    alignItems: 'center',
   },
-  playSongButton: {
-    backgroundColor: '#4CAF50',
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    marginLeft: 5,
-    alignItems: 'center',
+  songActions: {
+    flexDirection: 'row',
   },
-  addSongButton: {
-    backgroundColor: '#2196F3',
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    alignItems: 'center',
+  actionButton: {
+    marginLeft: 10,
   },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
+  emptyText: {
+    fontSize: 16,
+    color: '#777',
+    textAlign: 'center',
+    marginVertical: 20,
   },
-  createButton: {
-    backgroundColor: '#d3d3d3',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
+  sectionHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  toggleButton: {
+    padding: 5,
+  },
+  songList: {
+    paddingBottom: 20,
+  },
+  songCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
     marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  createButtonText: {
-    color: 'black',
-    fontWeight: 'bold',
+  songCardText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
   },
-  songListTitle: {
-    marginTop: 20,
-    fontWeight: 'bold',
+  addButton: {
+    marginLeft: 10,
   },
   playerControls: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    backgroundColor: '#333',
+    paddingVertical: 10,
+    borderRadius: 8,
     marginTop: 20,
   },
-  deleteButton: {
-    padding: 5,
+  controlButton: {
+    alignItems: 'center',
+  },
+  controlButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#555',
+    textAlign: 'center',
+    marginTop: 30,
   },
 });
