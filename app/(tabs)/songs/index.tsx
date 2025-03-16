@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, View, Text, Alert, TouchableOpacity, Button, StyleSheet } from 'react-native';
+import { FlatList, View, Text, Alert, TouchableOpacity, StyleSheet } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
-import { useAudio } from '@/app/context/AudioContext'; // Importez useAudio
+import { Ionicons } from '@expo/vector-icons';
+import { useAudio } from '@/app/context/AudioContext';
 
 export default function SongsScreen() {
   const [songs, setSongs] = useState<MediaLibrary.Asset[]>([]);
@@ -11,14 +12,26 @@ export default function SongsScreen() {
   const [isReloading, setIsReloading] = useState(false);
   const [isLoadingSong, setIsLoadingSong] = useState(false);
 
-  const { sound, isPlaying, currentSong, playSong, pauseSong, resumeSong, stopSong } = useAudio();
+  const {
+    isPlaying,
+    currentSong,
+    playSong,
+    pauseSong,
+    resumeSong,
+    stopSong,
+    playNextSong,
+    playPreviousSong,
+  } = useAudio();
 
   useEffect(() => {
     const setupAudio = async () => {
       try {
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission refusée', 'Vous devez accepter la permission pour accéder aux chansons locales.');
+          Alert.alert(
+            'Permission refusée',
+            'Vous devez accepter la permission pour accéder aux chansons locales.'
+          );
         } else {
           await loadSongs();
         }
@@ -30,8 +43,8 @@ export default function SongsScreen() {
     setupAudio();
 
     return () => {
-      if (sound) {
-        sound.unloadAsync().catch(console.error);
+      if (currentSong) {
+        // On peut aussi décharger le son si nécessaire
       }
     };
   }, []);
@@ -60,7 +73,8 @@ export default function SongsScreen() {
     setIsLoadingSong(true);
 
     try {
-      await playSong(songs[index]);
+      // On passe la liste complète (playlist) et l'index courant
+      await playSong(songs[index], songs, index);
     } catch (error) {
       console.error('Erreur lors de la lecture de la musique', error);
     } finally {
@@ -73,22 +87,6 @@ export default function SongsScreen() {
       await pauseSong();
     } else {
       await resumeSong();
-    }
-  };
-
-  const playNextSong = () => {
-    if (currentSong) {
-      const currentIndex = songs.findIndex((song) => song.id === currentSong.id);
-      const nextIndex = (currentIndex + 1) % songs.length;
-      handlePlaySong(nextIndex);
-    }
-  };
-
-  const playPreviousSong = () => {
-    if (currentSong) {
-      const currentIndex = songs.findIndex((song) => song.id === currentSong.id);
-      const prevIndex = (currentIndex - 1 + songs.length) % songs.length;
-      handlePlaySong(prevIndex);
     }
   };
 
@@ -128,9 +126,27 @@ export default function SongsScreen() {
 
       {currentSong && (
         <View style={styles.playerControls}>
-          <Button title="⏮ Précédent" onPress={playPreviousSong} />
-          <Button title={isPlaying ? '⏸ Pause' : '▶️ Lecture'} onPress={togglePlayPause} />
-          <Button title="⏭ Suivant" onPress={playNextSong} />
+          <TouchableOpacity onPress={playPreviousSong} style={styles.controlButton}>
+            <Ionicons name="play-back" size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>Précédent</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={isPlaying ? pauseSong : resumeSong}
+            style={styles.controlButton}
+          >
+            <Ionicons name={isPlaying ? 'pause' : 'play'} size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>
+              {isPlaying ? 'Pause' : 'Lecture'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={playNextSong} style={styles.controlButton}>
+            <Ionicons name="play-forward" size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>Suivant</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={stopSong} style={styles.controlButton}>
+            <Ionicons name="square" size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>Arrêt</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -146,28 +162,43 @@ const styles = StyleSheet.create({
   songContainer: {
     padding: 10,
     backgroundColor: '#fff',
-    borderRadius: 5,
-    marginBottom: 5,
+    borderRadius: 8,
+    marginBottom: 8,
   },
   selectedSongContainer: {
-    backgroundColor: '#ddd',
+    backgroundColor: '#e0e0e0',
   },
   songText: {
     fontSize: 16,
-    color: 'black',
+    color: '#333',
   },
   selectedSongText: {
-    color: 'blue',
-    fontWeight: 'bold',
+    color: '#007aff',
+    fontWeight: '600',
   },
   loadingText: {
     fontSize: 18,
     textAlign: 'center',
     marginTop: 20,
+    color: '#555',
   },
   playerControls: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    backgroundColor: '#333',
+    paddingVertical: 10,
+    borderRadius: 8,
     marginTop: 20,
   },
+  controlButton: {
+    alignItems: 'center',
+    marginHorizontal: 8,
+    marginVertical: 5,
+  },
+  controlButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 4,
+  },
 });
+
