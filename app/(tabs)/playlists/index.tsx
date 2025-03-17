@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   Alert,
   StyleSheet,
-} from 'react-native';
-import * as MusicLibrary from 'expo-music-library';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import CustomPopup from './CustomPopup';
-import { useAudio } from '@/app/context/AudioContext';
+} from "react-native";
+import * as MusicLibrary from "expo-music-library";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import CustomPopup from "./CustomPopup";
+import { useAudio } from "@/app/context/AudioContext";
 
 interface Playlist {
   id: string;
@@ -22,27 +22,28 @@ interface Playlist {
 
 export default function PlaylistsScreen() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [playlistName, setPlaylistName] = useState('');
+  const [playlistName, setPlaylistName] = useState("");
   const [songs, setSongs] = useState<MusicLibrary.Asset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSong, setSelectedSong] = useState<MusicLibrary.Asset | null>(null);
+  // Tableau pour plusieurs chansons sélectionnées
+  const [selectedSongs, setSelectedSongs] = useState<MusicLibrary.Asset[]>([]);
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [showSongList, setShowSongList] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [nextPage, setNextPage] = useState<string | undefined>(undefined);
 
-  const { 
-    isPlaying, 
-    currentSong, 
-    playSong, 
-    pauseSong, 
-    resumeSong, 
+  const {
+    isPlaying,
+    currentSong,
+    playSong,
+    pauseSong,
+    resumeSong,
     stopSong,
     playNextSong,
-    playPreviousSong
+    playPreviousSong,
   } = useAudio();
 
-  // Fonction de chargement paginé des chansons (50 par appel)
+  // Chargement paginé des chansons (50 par appel)
   const loadSongs = async () => {
     try {
       setLoading(true);
@@ -50,41 +51,41 @@ export default function PlaylistsScreen() {
         first: 50,
         after: nextPage,
       });
-      setSongs(prevSongs => [...prevSongs, ...media.assets]);
+      setSongs((prevSongs) => [...prevSongs, ...media.assets]);
       setNextPage(media.hasNextPage ? media.endCursor : undefined);
       setHasNextPage(media.hasNextPage);
       setLoading(false);
     } catch (error) {
-      console.error('Erreur lors de la récupération des chansons', error);
+      console.error("Erreur lors de la récupération des chansons", error);
       setLoading(false);
     }
   };
 
   const loadPlaylists = async () => {
     try {
-      const savedPlaylists = await AsyncStorage.getItem('playlists');
+      const savedPlaylists = await AsyncStorage.getItem("playlists");
       if (savedPlaylists) {
         setPlaylists(JSON.parse(savedPlaylists));
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des playlists', error);
+      console.error("Erreur lors du chargement des playlists", error);
     }
   };
 
   const savePlaylists = async (playlists: Playlist[]) => {
     try {
-      await AsyncStorage.setItem('playlists', JSON.stringify(playlists));
+      await AsyncStorage.setItem("playlists", JSON.stringify(playlists));
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde des playlists', error);
+      console.error("Erreur lors de la sauvegarde des playlists", error);
     }
   };
 
   const createPlaylist = () => {
     if (!playlistName) {
-      Alert.alert('Nom manquant', 'Veuillez entrer un nom pour la playlist');
+      Alert.alert("Nom manquant", "Veuillez entrer un nom pour la playlist");
       return;
     }
-    const newPlaylist = {
+    const newPlaylist: Playlist = {
       id: `playlist-${Date.now()}`,
       name: playlistName,
       songs: [],
@@ -92,24 +93,22 @@ export default function PlaylistsScreen() {
     const updatedPlaylists = [...playlists, newPlaylist];
     setPlaylists(updatedPlaylists);
     savePlaylists(updatedPlaylists);
-    setPlaylistName('');
-
-    if (selectedSong) {
-      setIsPopupVisible(true);
-    }
+    setPlaylistName("");
   };
 
   const deletePlaylist = (playlistId: string) => {
     Alert.alert(
-      'Supprimer la playlist',
-      'Voulez-vous vraiment supprimer cette playlist ?',
+      "Supprimer la playlist",
+      "Voulez-vous vraiment supprimer cette playlist ?",
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: "Annuler", style: "cancel" },
         {
-          text: 'Supprimer',
-          style: 'destructive',
+          text: "Supprimer",
+          style: "destructive",
           onPress: () => {
-            const updatedPlaylists = playlists.filter(p => p.id !== playlistId);
+            const updatedPlaylists = playlists.filter(
+              (p) => p.id !== playlistId
+            );
             setPlaylists(updatedPlaylists);
             savePlaylists(updatedPlaylists);
           },
@@ -118,36 +117,43 @@ export default function PlaylistsScreen() {
     );
   };
 
+  // Mise à jour fonctionnelle pour éviter les problèmes d'état asynchrone
   const addSongToPlaylist = (playlistId: string, song: MusicLibrary.Asset) => {
-    const updatedPlaylists = playlists.map(playlist => {
-      if (playlist.id === playlistId) {
-        if (playlist.songs.some(existingSong => existingSong.id === song.id)) {
-          Alert.alert(
-            'Chanson déjà ajoutée',
-            'Cette chanson est déjà présente dans la playlist.'
-          );
-          return playlist;
+    setPlaylists((prevPlaylists) => {
+      const updatedPlaylists = prevPlaylists.map((playlist) => {
+        if (playlist.id === playlistId) {
+          if (
+            playlist.songs.some((existingSong) => existingSong.id === song.id)
+          ) {
+            Alert.alert(
+              "Chanson déjà ajoutée",
+              "Cette chanson est déjà présente dans la playlist."
+            );
+            return playlist;
+          }
+          return { ...playlist, songs: [...playlist.songs, song] };
         }
-        return { ...playlist, songs: [...playlist.songs, song] };
-      }
-      return playlist;
+        return playlist;
+      });
+      savePlaylists(updatedPlaylists);
+      return updatedPlaylists;
     });
-    setPlaylists(updatedPlaylists);
-    savePlaylists(updatedPlaylists);
   };
 
   const removeSongFromPlaylist = (playlistId: string, songId: string) => {
-    const updatedPlaylists = playlists.map(playlist => {
-      if (playlist.id === playlistId) {
-        return {
-          ...playlist,
-          songs: playlist.songs.filter(song => song.id !== songId),
-        };
-      }
-      return playlist;
+    setPlaylists((prevPlaylists) => {
+      const updatedPlaylists = prevPlaylists.map((playlist) => {
+        if (playlist.id === playlistId) {
+          return {
+            ...playlist,
+            songs: playlist.songs.filter((song) => song.id !== songId),
+          };
+        }
+        return playlist;
+      });
+      savePlaylists(updatedPlaylists);
+      return updatedPlaylists;
     });
-    setPlaylists(updatedPlaylists);
-    savePlaylists(updatedPlaylists);
   };
 
   const playPlaylist = async (playlist: Playlist) => {
@@ -156,23 +162,50 @@ export default function PlaylistsScreen() {
     }
   };
 
-  const playSongFromPlaylist = async (playlist: Playlist, songIndex: number) => {
+  const playSongFromPlaylist = async (
+    playlist: Playlist,
+    songIndex: number
+  ) => {
     if (playlist.songs.length > 0) {
       await playSong(playlist.songs[songIndex], playlist.songs, songIndex);
     }
   };
 
-  const handleSelectPlaylist = (index: number) => {
-    if (selectedSong) {
-      const selectedPlaylist = playlists[index];
-      addSongToPlaylist(selectedPlaylist.id, selectedSong);
+  // Bascule la sélection d'une chanson
+  const toggleSongSelection = (song: MusicLibrary.Asset) => {
+    if (selectedSongs.some((s) => s.id === song.id)) {
+      setSelectedSongs(selectedSongs.filter((s) => s.id !== song.id));
+    } else {
+      setSelectedSongs([...selectedSongs, song]);
     }
+  };
+
+  // Ajoute toutes les chansons sélectionnées à la playlist choisie en une seule opération
+  const handleSelectPlaylist = (index: number) => {
+    const selectedPlaylist = playlists[index];
+    setPlaylists((prevPlaylists) => {
+      const updatedPlaylists = prevPlaylists.map((playlist) => {
+        if (playlist.id === selectedPlaylist.id) {
+          const newSongs = selectedSongs.filter(
+            (song) =>
+              !playlist.songs.some(
+                (existingSong) => existingSong.id === song.id
+              )
+          );
+          return { ...playlist, songs: [...playlist.songs, ...newSongs] };
+        }
+        return playlist;
+      });
+      savePlaylists(updatedPlaylists);
+      return updatedPlaylists;
+    });
     setIsPopupVisible(false);
+    setSelectedSongs([]);
   };
 
   const handleCancelPopup = () => {
     setIsPopupVisible(false);
-    setSelectedSong(null);
+    setSelectedSongs([]);
   };
 
   useEffect(() => {
@@ -226,16 +259,26 @@ export default function PlaylistsScreen() {
                       <Text style={styles.songName}>{song.filename}</Text>
                       <View style={styles.songActions}>
                         <TouchableOpacity
-                          onPress={() => removeSongFromPlaylist(item.id, song.id)}
+                          onPress={() =>
+                            removeSongFromPlaylist(item.id, song.id)
+                          }
                           style={styles.actionButton}
                         >
-                          <Ionicons name="remove-circle" size={20} color="#ff4d4d" />
+                          <Ionicons
+                            name="remove-circle"
+                            size={20}
+                            color="#ff4d4d"
+                          />
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => playSongFromPlaylist(item, index)}
                           style={styles.actionButton}
                         >
-                          <Ionicons name="play-circle" size={20} color="#4CAF50" />
+                          <Ionicons
+                            name="play-circle"
+                            size={20}
+                            color="#4CAF50"
+                          />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -252,44 +295,75 @@ export default function PlaylistsScreen() {
         <Text style={styles.emptyText}>Aucune playlist créée.</Text>
       )}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Ajouter des chansons aux playlists :</Text>
-        <TouchableOpacity onPress={() => setShowSongList(!showSongList)} style={styles.toggleButton}>
-          <Ionicons name={showSongList ? "chevron-up" : "chevron-down"} size={24} color="#2196F3" />
+        <Text style={styles.sectionTitle}>
+          Ajouter des chansons aux playlists :
+        </Text>
+        <TouchableOpacity
+          onPress={() => setShowSongList(!showSongList)}
+          style={styles.toggleButton}
+        >
+          <Ionicons
+            name={showSongList ? "chevron-up" : "chevron-down"}
+            size={24}
+            color="#2196F3"
+          />
         </TouchableOpacity>
       </View>
       {showSongList && (
-        <FlatList
-          data={songs}
-          renderItem={({ item }) => (
-            <View style={styles.songCard}>
-              <Text style={styles.songCardText}>{item.filename}</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedSong(item);
-                  if (playlists.length === 0) {
-                    Alert.alert(
-                      'Aucune playlist',
-                      'Veuillez d\'abord créer une playlist.'
-                    );
-                    return;
-                  }
-                  setIsPopupVisible(true);
-                }}
-                style={styles.addButton}
-              >
-                <Ionicons name="add-circle" size={24} color="#2196F3" />
-              </TouchableOpacity>
-            </View>
+        <>
+          {selectedSongs.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setIsPopupVisible(true)}
+              style={styles.addSelectedButton}
+            >
+              <Text style={styles.addSelectedButtonText}>
+                Ajouter les chansons sélectionnées
+              </Text>
+            </TouchableOpacity>
           )}
-          keyExtractor={(item, index) => `song-${item.id}-${index}`}
-          contentContainerStyle={styles.songList}
-          onEndReached={hasNextPage ? loadSongs : undefined}
-          onEndReachedThreshold={0.1}
-        />
+          <FlatList
+            data={songs}
+            renderItem={({ item }) => (
+              <View style={styles.songCard}>
+                <Text style={styles.songCardText}>{item.filename}</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (playlists.length === 0) {
+                      Alert.alert(
+                        "Aucune playlist",
+                        "Veuillez d'abord créer une playlist."
+                      );
+                      return;
+                    }
+                    toggleSongSelection(item);
+                  }}
+                  style={styles.addButton}
+                >
+                  <Ionicons
+                    name={
+                      selectedSongs.some((s) => s.id === item.id)
+                        ? "checkmark-circle"
+                        : "add-circle"
+                    }
+                    size={24}
+                    color="#2196F3"
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+            keyExtractor={(item, index) => `song-${item.id}-${index}`}
+            contentContainerStyle={styles.songList}
+            onEndReached={hasNextPage ? loadSongs : undefined}
+            onEndReachedThreshold={0.1}
+          />
+        </>
       )}
       {currentSong && (
         <View style={styles.playerControls}>
-          <TouchableOpacity onPress={playPreviousSong} style={styles.controlButton}>
+          <TouchableOpacity
+            onPress={playPreviousSong}
+            style={styles.controlButton}
+          >
             <Ionicons name="play-back" size={24} color="#fff" />
             <Text style={styles.controlButtonText}>Précédent</Text>
           </TouchableOpacity>
@@ -297,9 +371,13 @@ export default function PlaylistsScreen() {
             onPress={isPlaying ? pauseSong : resumeSong}
             style={styles.controlButton}
           >
-            <Ionicons name={isPlaying ? "pause" : "play"} size={24} color="#fff" />
+            <Ionicons
+              name={isPlaying ? "pause" : "play"}
+              size={24}
+              color="#fff"
+            />
             <Text style={styles.controlButtonText}>
-              {isPlaying ? 'Pause' : 'Lecture'}
+              {isPlaying ? "Pause" : "Lecture"}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={playNextSong} style={styles.controlButton}>
@@ -314,7 +392,7 @@ export default function PlaylistsScreen() {
       )}
       <CustomPopup
         visible={isPopupVisible}
-        options={playlists.map(playlist => playlist.name)}
+        options={playlists.map((playlist) => playlist.name)}
         onSelect={handleSelectPlaylist}
         onCancel={handleCancelPopup}
       />
@@ -325,7 +403,7 @@ export default function PlaylistsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#eef2f9", // Fond harmonisé avec SongsScreen
+    backgroundColor: "#eef2f9",
     padding: 15,
   },
   header: {
@@ -464,6 +542,18 @@ const styles = StyleSheet.create({
   addButton: {
     marginLeft: 10,
   },
+  addSelectedButton: {
+    backgroundColor: "#4CAF50",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  addSelectedButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   playerControls: {
     position: "absolute",
     bottom: 20,
@@ -493,6 +583,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#555",
     textAlign: "center",
-    marginTop: 30,
-  },
+    marginTop: 30,
+  },
 });
