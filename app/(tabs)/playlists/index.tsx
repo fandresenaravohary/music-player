@@ -185,7 +185,7 @@ export default function PlaylistsScreen() {
           value={playlistName}
           onChangeText={setPlaylistName}
           placeholder="Nom de la playlist"
-          placeholderTextColor="#888"
+          placeholderTextColor="#999"
           style={styles.input}
         />
         <TouchableOpacity onPress={createPlaylist} style={styles.createButton}>
@@ -239,7 +239,7 @@ export default function PlaylistsScreen() {
             </View>
           )}
           keyExtractor={(item, index) => `playlist-${item.id}-${index}`}
-          contentContainerStyle={styles.playlistList}
+          contentContainerStyle={styles.listContent}
         />
       ) : (
         <Text style={styles.emptyText}>Aucune playlist créée.</Text>
@@ -316,61 +316,66 @@ export default function PlaylistsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#eef2f5',
+    backgroundColor: "#eef2f9", // Fond harmonisé avec SongsScreen
     padding: 15,
   },
   header: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 15,
-    color: '#333',
-    textAlign: 'center',
+    color: "#333",
+    textAlign: "center",
   },
   inputContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    // Ombre pour iOS et élévation pour Android
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   input: {
     flex: 1,
-    height: 45,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 15,
     fontSize: 16,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    color: '#333',
+    color: "#333",
   },
   createButton: {
     marginLeft: 10,
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   createButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 16,
   },
-  playlistList: {
-    paddingBottom: 20,
-  },
   playlistCard: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
+    marginBottom: 12,
+    // Ombre pour iOS et élévation pour Android
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
   },
   playlistHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 10,
   },
   playlistTitleContainer: {
@@ -378,47 +383,50 @@ const styles = StyleSheet.create({
   },
   playlistTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   deleteButton: {
     marginLeft: 10,
   },
+  listContent: {
+    paddingBottom: 100,
+  },
   songRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 8,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#eee",
     borderBottomWidth: 1,
   },
   songName: {
     fontSize: 16,
-    color: '#555',
+    color: "#555",
     flex: 1,
   },
   songActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   actionButton: {
     marginLeft: 10,
   },
   emptyText: {
     fontSize: 16,
-    color: '#777',
-    textAlign: 'center',
+    color: "#777",
+    textAlign: "center",
     marginVertical: 20,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginVertical: 15,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   toggleButton: {
     padding: 5,
@@ -427,47 +435,59 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   songCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 10,
     paddingHorizontal: 15,
+    paddingVertical: 12,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    // Ombre pour iOS et élévation pour Android
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   songCardText: {
     fontSize: 16,
-    color: '#333',
+    color: "#333",
     flex: 1,
   },
   addButton: {
     marginLeft: 10,
   },
   playerControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#333',
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 20,
+    position: "absolute",
+    bottom: 20,
+    left: 15,
+    right: 15,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#1e1e1e",
+    paddingVertical: 12,
+    borderRadius: 30,
+    // Ombre pour iOS et élévation pour Android
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 4,
   },
   controlButton: {
-    alignItems: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   controlButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 12,
     marginTop: 4,
   },
   loadingText: {
     fontSize: 18,
-    color: '#555',
-    textAlign: 'center',
+    color: "#555",
+    textAlign: "center",
     marginTop: 30,
   },
 });
