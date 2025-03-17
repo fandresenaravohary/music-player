@@ -9,14 +9,14 @@ import {
   TextInput,
   Platform,
 } from "react-native";
-import * as MediaLibrary from "expo-media-library";
+import * as MusicLibrary from "expo-music-library";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudio } from "@/app/context/AudioContext";
 import { useFavorites } from "@/app/context/FavoritesContext";
 
 export default function SongsScreen() {
-  const [songs, setSongs] = useState<MediaLibrary.Asset[]>([]);
-  const [filteredSongs, setFilteredSongs] = useState<MediaLibrary.Asset[]>([]);
+  const [songs, setSongs] = useState<MusicLibrary.Asset[]>([]);
+  const [filteredSongs, setFilteredSongs] = useState<MusicLibrary.Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [nextPage, setNextPage] = useState<string | undefined>(undefined);
@@ -40,7 +40,7 @@ export default function SongsScreen() {
   useEffect(() => {
     const setupAudio = async () => {
       try {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
+        const { status } = await MusicLibrary.requestPermissionsAsync();
         if (status !== "granted") {
           Alert.alert(
             "Permission refusée",
@@ -73,9 +73,8 @@ export default function SongsScreen() {
   const loadSongs = async () => {
     try {
       setLoading(true);
-      const media = await MediaLibrary.getAssetsAsync({
-        mediaType: MediaLibrary.MediaType.audio,
-        first: 1000,
+      const media = await MusicLibrary.getAssetsAsync({
+        first: 50, // Charge 50 éléments par page
         after: nextPage,
       });
       setSongs((prevSongs) => [...prevSongs, ...media.assets]);
@@ -100,7 +99,7 @@ export default function SongsScreen() {
     }
   };
 
-  const openSongMenu = (song: MediaLibrary.Asset) => {
+  const openSongMenu = (song: MusicLibrary.Asset) => {
     const favoriteOption = isFavorite(song.id)
       ? {
           text: "Retirer des favoris",
@@ -123,7 +122,7 @@ export default function SongsScreen() {
     item,
     index,
   }: {
-    item: MediaLibrary.Asset;
+    item: MusicLibrary.Asset;
     index: number;
   }) => (
     <TouchableOpacity
@@ -303,3 +302,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
+

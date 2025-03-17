@@ -8,7 +8,7 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import * as MediaLibrary from 'expo-media-library';
+import * as MusicLibrary from 'expo-music-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import CustomPopup from './CustomPopup';
@@ -17,17 +17,19 @@ import { useAudio } from '@/app/context/AudioContext';
 interface Playlist {
   id: string;
   name: string;
-  songs: MediaLibrary.Asset[];
+  songs: MusicLibrary.Asset[];
 }
 
 export default function PlaylistsScreen() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playlistName, setPlaylistName] = useState('');
-  const [songs, setSongs] = useState<MediaLibrary.Asset[]>([]);
+  const [songs, setSongs] = useState<MusicLibrary.Asset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSong, setSelectedSong] = useState<MediaLibrary.Asset | null>(null);
+  const [selectedSong, setSelectedSong] = useState<MusicLibrary.Asset | null>(null);
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [showSongList, setShowSongList] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [nextPage, setNextPage] = useState<string | undefined>(undefined);
 
   const { 
     isPlaying, 
@@ -40,16 +42,21 @@ export default function PlaylistsScreen() {
     playPreviousSong
   } = useAudio();
 
+  // Fonction de chargement paginé des chansons (50 par appel)
   const loadSongs = async () => {
     try {
-      const media = await MediaLibrary.getAssetsAsync({
-        mediaType: MediaLibrary.MediaType.audio,
-        first: 1000,
+      setLoading(true);
+      const media = await MusicLibrary.getAssetsAsync({
+        first: 50,
+        after: nextPage,
       });
-      setSongs(media.assets);
+      setSongs(prevSongs => [...prevSongs, ...media.assets]);
+      setNextPage(media.hasNextPage ? media.endCursor : undefined);
+      setHasNextPage(media.hasNextPage);
       setLoading(false);
     } catch (error) {
       console.error('Erreur lors de la récupération des chansons', error);
+      setLoading(false);
     }
   };
 
@@ -102,7 +109,7 @@ export default function PlaylistsScreen() {
           text: 'Supprimer',
           style: 'destructive',
           onPress: () => {
-            const updatedPlaylists = playlists.filter((p) => p.id !== playlistId);
+            const updatedPlaylists = playlists.filter(p => p.id !== playlistId);
             setPlaylists(updatedPlaylists);
             savePlaylists(updatedPlaylists);
           },
@@ -111,10 +118,10 @@ export default function PlaylistsScreen() {
     );
   };
 
-  const addSongToPlaylist = (playlistId: string, song: MediaLibrary.Asset) => {
-    const updatedPlaylists = playlists.map((playlist) => {
+  const addSongToPlaylist = (playlistId: string, song: MusicLibrary.Asset) => {
+    const updatedPlaylists = playlists.map(playlist => {
       if (playlist.id === playlistId) {
-        if (playlist.songs.some((existingSong) => existingSong.id === song.id)) {
+        if (playlist.songs.some(existingSong => existingSong.id === song.id)) {
           Alert.alert(
             'Chanson déjà ajoutée',
             'Cette chanson est déjà présente dans la playlist.'
@@ -130,11 +137,11 @@ export default function PlaylistsScreen() {
   };
 
   const removeSongFromPlaylist = (playlistId: string, songId: string) => {
-    const updatedPlaylists = playlists.map((playlist) => {
+    const updatedPlaylists = playlists.map(playlist => {
       if (playlist.id === playlistId) {
         return {
           ...playlist,
-          songs: playlist.songs.filter((song) => song.id !== songId),
+          songs: playlist.songs.filter(song => song.id !== songId),
         };
       }
       return playlist;
@@ -276,6 +283,8 @@ export default function PlaylistsScreen() {
           )}
           keyExtractor={(item, index) => `song-${item.id}-${index}`}
           contentContainerStyle={styles.songList}
+          onEndReached={hasNextPage ? loadSongs : undefined}
+          onEndReachedThreshold={0.1}
         />
       )}
       {currentSong && (
@@ -305,7 +314,7 @@ export default function PlaylistsScreen() {
       )}
       <CustomPopup
         visible={isPopupVisible}
-        options={playlists.map((playlist) => playlist.name)}
+        options={playlists.map(playlist => playlist.name)}
         onSelect={handleSelectPlaylist}
         onCancel={handleCancelPopup}
       />
@@ -336,7 +345,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: "#ccc",
-    // Ombre pour iOS et élévation pour Android
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -365,7 +373,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 15,
     marginBottom: 12,
-    // Ombre pour iOS et élévation pour Android
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -443,7 +450,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     marginBottom: 10,
-    // Ombre pour iOS et élévation pour Android
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -468,7 +474,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#1e1e1e",
     paddingVertical: 12,
     borderRadius: 30,
-    // Ombre pour iOS et élévation pour Android
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.2,
