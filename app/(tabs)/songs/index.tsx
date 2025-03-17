@@ -10,6 +10,7 @@ import {
 import * as MediaLibrary from "expo-media-library";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudio } from "@/app/context/AudioContext";
+import { useFavorites } from "@/app/context/FavoritesContext";
 
 export default function SongsScreen() {
   const [songs, setSongs] = useState<MediaLibrary.Asset[]>([]);
@@ -29,6 +30,8 @@ export default function SongsScreen() {
     playNextSong,
     playPreviousSong,
   } = useAudio();
+
+  const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
 
   useEffect(() => {
     const setupAudio = async () => {
@@ -50,8 +53,7 @@ export default function SongsScreen() {
     setupAudio();
 
     return () => {
-      if (currentSong) {
-      }
+      // Cleanup si nécessaire
     };
   }, []);
 
@@ -87,11 +89,11 @@ export default function SongsScreen() {
     }
   };
 
-  const togglePlayPause = async () => {
-    if (isPlaying) {
-      await pauseSong();
+  const toggleFavorite = (song: MediaLibrary.Asset) => {
+    if (isFavorite(song.id)) {
+      removeFavorite(song.id);
     } else {
-      await resumeSong();
+      addFavorite(song);
     }
   };
 
@@ -110,14 +112,23 @@ export default function SongsScreen() {
         currentSong?.id === item.id && styles.selectedSongContainer,
       ]}
     >
-      <Text
-        style={[
-          styles.songText,
-          currentSong?.id === item.id && styles.selectedSongText,
-        ]}
-      >
-        {item.filename}
-      </Text>
+      <View style={styles.songRow}>
+        <Text
+          style={[
+            styles.songText,
+            currentSong?.id === item.id && styles.selectedSongText,
+          ]}
+        >
+          {item.filename}
+        </Text>
+        <TouchableOpacity onPress={() => toggleFavorite(item)}>
+          <Ionicons
+            name={isFavorite(item.id) ? "heart" : "heart-outline"}
+            size={24}
+            color="red"
+          />
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 
@@ -130,7 +141,7 @@ export default function SongsScreen() {
       <FlatList
         data={songs}
         renderItem={renderSong}
-        keyExtractor={(item, index) => `${item.id}-${index}`} 
+        keyExtractor={(item, index) => `${item.id}-${index}`}
         onEndReached={hasNextPage ? loadSongs : undefined}
         onEndReachedThreshold={0.1}
       />
@@ -182,6 +193,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 8,
     marginBottom: 8,
+  },
+  songRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   selectedSongContainer: {
     backgroundColor: "#e0e0e0",
