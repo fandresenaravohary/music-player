@@ -1,13 +1,13 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Audio } from 'expo-av';
 import { AppState } from 'react-native';
-import * as MediaLibrary from 'expo-media-library';
+import * as MusicLibrary from 'expo-music-library';
 
 interface AudioContextType {
   sound: Audio.Sound | null;
   isPlaying: boolean;
-  currentSong: MediaLibrary.Asset | null;
-  playSong: (song: MediaLibrary.Asset, playlist?: MediaLibrary.Asset[], index?: number) => Promise<void>;
+  currentSong: MusicLibrary.Asset | null;
+  playSong: (song: MusicLibrary.Asset, playlist?: MusicLibrary.Asset[], index?: number) => Promise<void>;
   pauseSong: () => Promise<void>;
   resumeSong: () => Promise<void>;
   stopSong: () => Promise<void>;
@@ -24,8 +24,8 @@ interface AudioProviderProps {
 export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentSong, setCurrentSong] = useState<MediaLibrary.Asset | null>(null);
-  const [currentPlaylist, setCurrentPlaylist] = useState<MediaLibrary.Asset[] | null>(null);
+  const [currentSong, setCurrentSong] = useState<MusicLibrary.Asset | null>(null);
+  const [currentPlaylist, setCurrentPlaylist] = useState<MusicLibrary.Asset[] | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -46,7 +46,7 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     };
   }, [sound]);
 
-  const playSong = async (song: MediaLibrary.Asset, playlist?: MediaLibrary.Asset[], index?: number) => {
+  const playSong = async (song: MusicLibrary.Asset, playlist?: MusicLibrary.Asset[], index?: number) => {
     if (isLoading) return;
     setIsLoading(true);
 
