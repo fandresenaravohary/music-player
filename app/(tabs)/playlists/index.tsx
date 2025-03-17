@@ -37,7 +37,9 @@ export default function PlaylistsScreen() {
     resumeSong, 
     stopSong,
     playNextSong,
-    playPreviousSong
+    playPreviousSong,
+    skipForward,
+    skipBackward,
   } = useAudio();
 
   const loadSongs = async () => {
@@ -284,14 +286,19 @@ export default function PlaylistsScreen() {
             <Ionicons name="play-back" size={24} color="#fff" />
             <Text style={styles.controlButtonText}>Précédent</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={isPlaying ? pauseSong : resumeSong}
-            style={styles.controlButton}
-          >
+          <TouchableOpacity onPress={() => skipBackward()} style={styles.controlButton}>
+            <Ionicons name="arrow-back-circle" size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>-10s</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={isPlaying ? pauseSong : resumeSong} style={styles.controlButton}>
             <Ionicons name={isPlaying ? "pause" : "play"} size={24} color="#fff" />
             <Text style={styles.controlButtonText}>
               {isPlaying ? 'Pause' : 'Lecture'}
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => skipForward()} style={styles.controlButton}>
+            <Ionicons name="arrow-forward-circle" size={24} color="#fff" />
+            <Text style={styles.controlButtonText}>+10s</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={playNextSong} style={styles.controlButton}>
             <Ionicons name="play-forward" size={24} color="#fff" />

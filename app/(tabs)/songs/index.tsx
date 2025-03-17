@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from "react";
-import {
-  FlatList,
-  View,
-  Text,
-  Alert,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
+import { View, Text, Alert, StyleSheet } from "react-native";
 import * as MediaLibrary from "expo-media-library";
-import { Ionicons } from "@expo/vector-icons";
 import { useAudio } from "@/app/context/AudioContext";
+import SongList from "./SongList";
+import PlayerControls from "./PlayerControls";
 
 export default function SongsScreen() {
   const [songs, setSongs] = useState<MediaLibrary.Asset[]>([]);
@@ -28,6 +22,8 @@ export default function SongsScreen() {
     stopSong,
     playNextSong,
     playPreviousSong,
+    skipForward,
+    skipBackward,
   } = useAudio();
 
   useEffect(() => {
@@ -48,11 +44,6 @@ export default function SongsScreen() {
     };
 
     setupAudio();
-
-    return () => {
-      if (currentSong) {
-      }
-    };
   }, []);
 
   const loadSongs = async () => {
@@ -77,7 +68,6 @@ export default function SongsScreen() {
   const handlePlaySong = async (index: number) => {
     if (isReloading || isLoadingSong) return;
     setIsLoadingSong(true);
-
     try {
       await playSong(songs[index], songs, index);
     } catch (error) {
@@ -87,85 +77,28 @@ export default function SongsScreen() {
     }
   };
 
-  const togglePlayPause = async () => {
-    if (isPlaying) {
-      await pauseSong();
-    } else {
-      await resumeSong();
-    }
-  };
-
-  const renderSong = ({
-    item,
-    index,
-  }: {
-    item: MediaLibrary.Asset;
-    index: number;
-  }) => (
-    <TouchableOpacity
-      onPress={() => handlePlaySong(index)}
-      disabled={isLoadingSong}
-      style={[
-        styles.songContainer,
-        currentSong?.id === item.id && styles.selectedSongContainer,
-      ]}
-    >
-      <Text
-        style={[
-          styles.songText,
-          currentSong?.id === item.id && styles.selectedSongText,
-        ]}
-      >
-        {item.filename}
-      </Text>
-    </TouchableOpacity>
-  );
-
   if (loading) {
     return <Text style={styles.loadingText}>Chargement...</Text>;
   }
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={songs}
-        renderItem={renderSong}
-        keyExtractor={(item, index) => `${item.id}-${index}`} 
-        onEndReached={hasNextPage ? loadSongs : undefined}
-        onEndReachedThreshold={0.1}
+      <SongList
+        songs={songs}
+        currentSongId={currentSong?.id}
+        isLoadingSong={isLoadingSong}
+        onSongPress={handlePlaySong}
       />
-
       {currentSong && (
-        <View style={styles.playerControls}>
-          <TouchableOpacity
-            onPress={playPreviousSong}
-            style={styles.controlButton}
-          >
-            <Ionicons name="play-back" size={24} color="#fff" />
-            <Text style={styles.controlButtonText}>Précédent</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={isPlaying ? pauseSong : resumeSong}
-            style={styles.controlButton}
-          >
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={24}
-              color="#fff"
-            />
-            <Text style={styles.controlButtonText}>
-              {isPlaying ? "Pause" : "Lecture"}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={playNextSong} style={styles.controlButton}>
-            <Ionicons name="play-forward" size={24} color="#fff" />
-            <Text style={styles.controlButtonText}>Suivant</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={stopSong} style={styles.controlButton}>
-            <Ionicons name="square" size={24} color="#fff" />
-            <Text style={styles.controlButtonText}>Arrêt</Text>
-          </TouchableOpacity>
-        </View>
+        <PlayerControls
+          isPlaying={isPlaying}
+          onPrevious={playPreviousSong}
+          onSkipBackward={() => skipBackward()}
+          onPlayPause={isPlaying ? pauseSong : resumeSong}
+          onSkipForward={() => skipForward()}
+          onNext={playNextSong}
+          onStop={stopSong}
+        />
       )}
     </View>
   );
@@ -177,46 +110,10 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "#f5f5f5",
   },
-  songContainer: {
-    padding: 10,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  selectedSongContainer: {
-    backgroundColor: "#e0e0e0",
-  },
-  songText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  selectedSongText: {
-    color: "#007aff",
-    fontWeight: "600",
-  },
   loadingText: {
     fontSize: 18,
     textAlign: "center",
     marginTop: 20,
     color: "#555",
-  },
-  playerControls: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#333",
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 20,
-    flexWrap: "wrap",
-  },
-  controlButton: {
-    alignItems: "center",
-    marginHorizontal: 8,
-    marginVertical: 5,
-  },
-  controlButtonText: {
-    color: "#fff",
-    fontSize: 12,
-    marginTop: 4,
   },
 });

@@ -13,6 +13,11 @@ interface AudioContextType {
   stopSong: () => Promise<void>;
   playNextSong: () => Promise<void>;
   playPreviousSong: () => Promise<void>;
+  skipForward: (interval?: number) => Promise<void>;
+  skipBackward: (interval?: number) => Promise<void>;
+  seekToPosition: (time: number) => Promise<void>;
+  position: number;
+  duration: number;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -28,7 +33,10 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
   const [currentPlaylist, setCurrentPlaylist] = useState<MediaLibrary.Asset[] | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [position, setPosition] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
 
+  // Effet pour gérer le changement d'état de l'application
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: string) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
@@ -40,9 +48,21 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-
     return () => {
       subscription.remove();
+    };
+  }, [sound]);
+
+  // Effet de nettoyage pour décharger l'instance sound lors du démontage
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound
+          .unloadAsync()
+          .catch((error) =>
+            console.error("Erreur lors du nettoyage de l'audio", error)
+          );
+      }
     };
   }, [sound]);
 
@@ -73,12 +93,16 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
       }
 
       newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          if (currentPlaylist && currentIndex !== -1) {
-            playNextSong();
-          } else {
-            setCurrentSong(null);
-            setIsPlaying(false);
+        if (status.isLoaded) {
+          setPosition(status.positionMillis);
+          setDuration(status.durationMillis || 0);
+          if (status.didJustFinish) {
+            if (currentPlaylist && currentIndex !== -1) {
+              playNextSong();
+            } else {
+              setCurrentSong(null);
+              setIsPlaying(false);
+            }
           }
         }
       });
@@ -120,9 +144,11 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
         setCurrentPlaylist(null);
         setCurrentIndex(-1);
         setIsPlaying(false);
+        setPosition(0);
+        setDuration(0);
       }
     } catch (error) {
-      console.error('Erreur lors de l\'arrêt', error);
+      console.error("Erreur lors de l'arrêt", error);
     }
   };
 
@@ -146,6 +172,38 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     }
   };
 
+  const seekToPosition = async (time: number) => {
+    if (sound) {
+      await sound.setPositionAsync(time);
+    }
+  };
+
+  const skipForward = async (interval: number = 10000) => {
+    if (sound) {
+      const status = await sound.getStatusAsync();
+      if (status.isLoaded) {
+        let newTime = status.positionMillis + interval;
+        if (status.durationMillis !== undefined && newTime > status.durationMillis) {
+          newTime = status.durationMillis;
+        }
+        await sound.setPositionAsync(newTime);
+      }
+    }
+  };
+
+  const skipBackward = async (interval: number = 10000) => {
+    if (sound) {
+      const status = await sound.getStatusAsync();
+      if (status.isLoaded) {
+        let newTime = status.positionMillis - interval;
+        if (newTime < 0) {
+          newTime = 0;
+        }
+        await sound.setPositionAsync(newTime);
+      }
+    }
+  };
+
   return (
     <AudioContext.Provider
       value={{
@@ -158,6 +216,11 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
         stopSong,
         playNextSong,
         playPreviousSong,
+        skipForward,
+        skipBackward,
+        seekToPosition,
+        position,
+        duration,
       }}
     >
       {children}
