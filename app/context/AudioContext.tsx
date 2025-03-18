@@ -35,7 +35,6 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
   const [currentTime, setCurrentTime] = useState<number>(0);
 
 
-  // Configuration de TrackPlayer lors du montage
   useEffect(() => {
     async function setup() {
       await TrackPlayer.setupPlayer();
@@ -59,14 +58,14 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     setup();
 
 
-    // Écoute de l'état de lecture pour mettre à jour isPlaying
+    // Mettre à jour l'état de lecture
     const playbackStateListener = TrackPlayer.addEventListener(Event.PlaybackState, async () => {
       const state = await TrackPlayer.getState();
       setIsPlaying(state === State.Playing);
     });
 
 
-    // Mise à jour de la position et de la durée toutes les secondes
+    // Mettre à jour la position et la durée toutes les secondes
     const interval = setInterval(async () => {
       const pos = await TrackPlayer.getPosition();
       const dur = await TrackPlayer.getDuration();
@@ -75,29 +74,55 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     }, 1000);
 
 
+    // Mettre à jour la chanson courante lors du changement de piste
+// Mettre à jour la chanson courante lors du changement de piste
+const trackChangeListener = TrackPlayer.addEventListener(Event.PlaybackTrackChanged, async (data) => {
+  if (data.nextTrack != null && currentPlaylist) {
+    // On récupère l'identifiant courant, qui est de type number | null, et on le convertit en string
+    const trackId = await TrackPlayer.getCurrentTrack();
+    const trackIdStr = trackId !== null ? trackId.toString() : '';
+    const newIndex = currentPlaylist.findIndex((track) => track.id === trackIdStr);
+    if (newIndex !== -1) {
+      setCurrentIndex(newIndex);
+      setCurrentSong(currentPlaylist[newIndex]);
+    }
+  }
+});
+
+
     return () => {
       playbackStateListener.remove();
+      trackChangeListener.remove();
       clearInterval(interval);
     };
-  }, []);
+  }, [currentPlaylist]);
 
 
   const playSong = async (song: MusicLibrary.Asset, playlist?: MusicLibrary.Asset[], index?: number) => {
-    // Réinitialiser le player et ajouter la piste sélectionnée
+    // Réinitialiser le player et ajouter l'ensemble de la playlist si disponible
     await TrackPlayer.reset();
-    await TrackPlayer.add({
-      id: song.id,
-      url: song.uri,
-      title: song.filename,
-      // Ajoutez d'autres métadonnées (artiste, artwork, etc.) si nécessaire
-    });
-    setCurrentSong(song);
     if (playlist && typeof index === 'number') {
+      const tracks = playlist.map((track) => ({
+        id: track.id,
+        url: track.uri,
+        title: track.filename,
+        // Vous pouvez ajouter d'autres métadonnées (artiste, artwork, etc.) si nécessaire
+      }));
+      await TrackPlayer.add(tracks);
+      // Positionner le curseur sur la piste sélectionnée
+      await TrackPlayer.skip(index);
       setCurrentPlaylist(playlist);
       setCurrentIndex(index);
+      setCurrentSong(song);
     } else {
+      await TrackPlayer.add({
+        id: song.id,
+        url: song.uri,
+        title: song.filename,
+      });
       setCurrentPlaylist(null);
       setCurrentIndex(-1);
+      setCurrentSong(song);
     }
     await TrackPlayer.play();
   };
@@ -124,11 +149,10 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
 
   const playNextSong = async () => {
     if (currentPlaylist && currentIndex !== -1) {
-      const nextIndex = currentIndex + 1;
-      if (nextIndex < currentPlaylist.length) {
-        const nextSong = currentPlaylist[nextIndex];
-        await playSong(nextSong, currentPlaylist, nextIndex);
-      } else {
+      try {
+        await TrackPlayer.skipToNext();
+      } catch (error) {
+        // S'il n'y a plus de piste suivante, arrêter la lecture
         await stopSong();
       }
     }
@@ -137,9 +161,11 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
 
   const playPreviousSong = async () => {
     if (currentPlaylist && currentIndex > 0) {
-      const prevIndex = currentIndex - 1;
-      const prevSong = currentPlaylist[prevIndex];
-      await playSong(prevSong, currentPlaylist, prevIndex);
+      try {
+        await TrackPlayer.skipToPrevious();
+      } catch (error) {
+        console.error("Erreur lors du passage à la chanson précédente", error);
+      }
     }
   };
 
