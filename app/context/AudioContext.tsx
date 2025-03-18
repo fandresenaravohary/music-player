@@ -1,130 +1,126 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { Audio } from 'expo-av';
-import { AppState } from 'react-native';
+import TrackPlayer, { Capability, State, Event } from 'react-native-track-player';
 import * as MusicLibrary from 'expo-music-library';
 
+
 interface AudioContextType {
-  sound: Audio.Sound | null;
-  isPlaying: boolean;
   currentSong: MusicLibrary.Asset | null;
+  isPlaying: boolean;
   playSong: (song: MusicLibrary.Asset, playlist?: MusicLibrary.Asset[], index?: number) => Promise<void>;
   pauseSong: () => Promise<void>;
   resumeSong: () => Promise<void>;
   stopSong: () => Promise<void>;
   playNextSong: () => Promise<void>;
   playPreviousSong: () => Promise<void>;
+  duration: number;
+  currentTime: number;
+  seekTo: (time: number) => Promise<void>;
 }
 
+
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
+
 
 interface AudioProviderProps {
   children: ReactNode;
 }
 
+
 export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentSong, setCurrentSong] = useState<MusicLibrary.Asset | null>(null);
   const [currentPlaylist, setCurrentPlaylist] = useState<MusicLibrary.Asset[] | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [duration, setDuration] = useState<number>(0);
+  const [currentTime, setCurrentTime] = useState<number>(0);
 
+
+  // Configuration de TrackPlayer lors du montage
   useEffect(() => {
-    const handleAppStateChange = async (nextAppState: string) => {
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
-        if (sound) {
-          await sound.unloadAsync();
-          setSound(null);
-        }
-      }
-    };
+    async function setup() {
+      await TrackPlayer.setupPlayer();
+      await TrackPlayer.updateOptions({
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.Stop,
+          Capability.SeekTo,
+        ],
+        compactCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+        ],
+      });
+    }
+    setup();
 
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Écoute de l'état de lecture pour mettre à jour isPlaying
+    const playbackStateListener = TrackPlayer.addEventListener(Event.PlaybackState, async () => {
+      const state = await TrackPlayer.getState();
+      setIsPlaying(state === State.Playing);
+    });
+
+
+    // Mise à jour de la position et de la durée toutes les secondes
+    const interval = setInterval(async () => {
+      const pos = await TrackPlayer.getPosition();
+      const dur = await TrackPlayer.getDuration();
+      setCurrentTime(pos);
+      setDuration(dur);
+    }, 1000);
+
 
     return () => {
-      subscription.remove();
+      playbackStateListener.remove();
+      clearInterval(interval);
     };
-  }, [sound]);
+  }, []);
+
 
   const playSong = async (song: MusicLibrary.Asset, playlist?: MusicLibrary.Asset[], index?: number) => {
-    if (isLoading) return;
-    setIsLoading(true);
-
-    try {
-      if (sound) {
-        await sound.unloadAsync();
-      }
-
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: song.uri },
-        { shouldPlay: true }
-      );
-
-      setSound(newSound);
-      setCurrentSong(song);
-      setIsPlaying(true);
-
-      if (playlist && typeof index === 'number') {
-        setCurrentPlaylist(playlist);
-        setCurrentIndex(index);
-      } else {
-        setCurrentPlaylist(null);
-        setCurrentIndex(-1);
-      }
-
-      newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          if (currentPlaylist && currentIndex !== -1) {
-            playNextSong();
-          } else {
-            setCurrentSong(null);
-            setIsPlaying(false);
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Erreur lors de la lecture de la musique', error);
-    } finally {
-      setIsLoading(false);
+    // Réinitialiser le player et ajouter la piste sélectionnée
+    await TrackPlayer.reset();
+    await TrackPlayer.add({
+      id: song.id,
+      url: song.uri,
+      title: song.filename,
+      // Ajoutez d'autres métadonnées (artiste, artwork, etc.) si nécessaire
+    });
+    setCurrentSong(song);
+    if (playlist && typeof index === 'number') {
+      setCurrentPlaylist(playlist);
+      setCurrentIndex(index);
+    } else {
+      setCurrentPlaylist(null);
+      setCurrentIndex(-1);
     }
+    await TrackPlayer.play();
   };
+
 
   const pauseSong = async () => {
-    try {
-      if (sound) {
-        await sound.pauseAsync();
-        setIsPlaying(false);
-      }
-    } catch (error) {
-      console.error('Erreur lors de la pause', error);
-    }
+    await TrackPlayer.pause();
   };
+
 
   const resumeSong = async () => {
-    try {
-      if (sound) {
-        await sound.playAsync();
-        setIsPlaying(true);
-      }
-    } catch (error) {
-      console.error('Erreur lors de la reprise', error);
-    }
+    await TrackPlayer.play();
   };
 
+
   const stopSong = async () => {
-    try {
-      if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
-        setCurrentSong(null);
-        setCurrentPlaylist(null);
-        setCurrentIndex(-1);
-        setIsPlaying(false);
-      }
-    } catch (error) {
-      console.error('Erreur lors de l\'arrêt', error);
-    }
+    await TrackPlayer.stop();
+    setCurrentSong(null);
+    setCurrentPlaylist(null);
+    setCurrentIndex(-1);
+    setIsPlaying(false);
   };
+
 
   const playNextSong = async () => {
     if (currentPlaylist && currentIndex !== -1) {
@@ -138,6 +134,7 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     }
   };
 
+
   const playPreviousSong = async () => {
     if (currentPlaylist && currentIndex > 0) {
       const prevIndex = currentIndex - 1;
@@ -146,18 +143,26 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     }
   };
 
+
+  const seekTo = async (time: number) => {
+    await TrackPlayer.seekTo(time);
+  };
+
+
   return (
     <AudioContext.Provider
       value={{
-        sound,
-        isPlaying,
         currentSong,
+        isPlaying,
         playSong,
         pauseSong,
         resumeSong,
         stopSong,
         playNextSong,
         playPreviousSong,
+        duration,
+        currentTime,
+        seekTo,
       }}
     >
       {children}
@@ -165,7 +170,6 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
   );
 };
 
-export default AudioProvider;
 
 export const useAudio = () => {
   const context = useContext(AudioContext);
@@ -174,3 +178,9 @@ export const useAudio = () => {
   }
   return context;
 };
+
+
+export default AudioProvider;
+
+
+
