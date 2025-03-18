@@ -16,9 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { useAudio } from "@/app/context/AudioContext";
 import { useFavorites } from "@/app/context/FavoritesContext";
-import defaultArtwork from "../../../assets/images/defaultArtwork.png";
 
-// Définition de l'interface pour les props du composant SongItem
 interface SongItemProps {
   song: MusicLibrary.Asset;
   index: number;
@@ -29,7 +27,6 @@ interface SongItemProps {
   styles: any;
 }
 
-// Composant pour un élément de chanson, encapsulé dans React.memo pour éviter des re-rendus inutiles.
 const SongItem: React.FC<SongItemProps> = React.memo(
   ({ song, index, isLoadingSong, currentSong, onPlaySong, onOpenSongMenu, styles }) => {
     const isSelected = currentSong?.id === song.id;
@@ -45,14 +42,11 @@ const SongItem: React.FC<SongItemProps> = React.memo(
         {song.artwork ? (
           <Image style={styles.songImage} source={{ uri: song.artwork }} />
         ) : (
-          <Image style={styles.songImage} source={defaultArtwork} />
+          <View style={styles.songImagePlaceholder} />
         )}
         <View style={styles.songRow}>
           <Text
-            style={[
-              styles.songText,
-              isSelected && styles.selectedSongText,
-            ]}
+            style={[styles.songText, isSelected && styles.selectedSongText]}
             numberOfLines={1}
           >
             {song.filename}
@@ -112,7 +106,6 @@ export default function SongsScreen() {
     setupAudio();
   }, []);
 
-  // Filtrage des chansons via useMemo pour éviter un recalcul à chaque rendu
   const filteredSongs = useMemo(() => {
     if (searchQuery.trim() === "") return songs;
     return songs.filter((song) =>
@@ -128,7 +121,6 @@ export default function SongsScreen() {
 
   const loadSongs = async () => {
     try {
-      // Si aucune chanson n'est chargée, on active l'indicateur plein écran
       if (songs.length === 0) {
         setLoading(true);
       }
@@ -177,14 +169,12 @@ export default function SongsScreen() {
     );
   };
 
-  // Formate le temps en minutes:secondes
   const formatTime = (seconds: number) => {
     const min = Math.floor(seconds / 60);
     const sec = Math.floor(seconds % 60);
     return `${min}:${sec < 10 ? "0" : ""}${sec}`;
   };
 
-  // Stabilisation des fonctions passées en props grâce à useCallback
   const memoizedHandlePlaySong = useCallback((index: number) => {
     handlePlaySong(index);
   }, [filteredSongs, isLoadingSong]);
@@ -193,7 +183,6 @@ export default function SongsScreen() {
     openSongMenu(song);
   }, [isFavorite, addFavorite, removeFavorite]);
 
-  // Afficher l'indicateur plein écran uniquement si aucune chanson n'est chargée
   if (songs.length === 0 && loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -205,7 +194,6 @@ export default function SongsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Barre de recherche */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
         <TextInput
@@ -213,7 +201,7 @@ export default function SongsScreen() {
           placeholder="Rechercher une chanson..."
           placeholderTextColor="#999"
           value={searchQuery}
-          onChangeText={(text) => setSearchQuery(text)}
+          onChangeText={setSearchQuery}
         />
       </View>
 
@@ -234,7 +222,6 @@ export default function SongsScreen() {
         onEndReached={hasNextPage ? loadSongs : undefined}
         onEndReachedThreshold={0.1}
         contentContainerStyle={styles.listContent}
-        // Affichage d'un indicateur en bas pendant le chargement de nouvelles données
         ListFooterComponent={
           hasNextPage && loading ? (
             <ActivityIndicator size="small" color="#1e90ff" style={{ marginVertical: 15 }} />
@@ -242,7 +229,6 @@ export default function SongsScreen() {
         }
       />
 
-      {/* Bouton pour afficher ou réduire le lecteur pop-up */}
       {currentSong && (
         <TouchableOpacity
           style={styles.popupToggleButton}
@@ -254,7 +240,6 @@ export default function SongsScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Pop-up du lecteur */}
       <Modal
         visible={popupVisible}
         animationType="slide"
@@ -280,7 +265,6 @@ export default function SongsScreen() {
                 }
               }}
             />
-            {/* Affichage des temps écoulé et total */}
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text>{formatTime(currentTime)}</Text>
               <Text>{formatTime(duration)}</Text>
@@ -315,7 +299,6 @@ export default function SongsScreen() {
         </View>
       </Modal>
 
-      {/* Contrôles du lecteur en mode compact */}
       {currentSong && (
         <View style={styles.playerControls}>
           <TouchableOpacity onPress={playPreviousSong} style={styles.controlButton}>
@@ -398,6 +381,13 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 5,
     marginRight: 10,
+  },
+  songImagePlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 5,
+    marginRight: 10,
+    backgroundColor: "#d3d3d3",
   },
   songRow: {
     flexDirection: "row",
@@ -503,3 +493,5 @@ const styles = StyleSheet.create({
     right: 10,
   },
 });
+
+export {};

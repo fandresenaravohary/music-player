@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Modal,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import * as MusicLibrary from "expo-music-library";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -36,6 +37,11 @@ const PlaylistSongRow: React.FC<PlaylistSongRowProps> = memo(
   ({ song, index, playlist, removeSongFromPlaylist, playSongFromPlaylist, styles }) => {
     return (
       <View style={styles.songRow}>
+        {song.artwork ? (
+          <Image style={styles.songImage} source={{ uri: song.artwork }} />
+        ) : (
+          <Image style={styles.songImage} source={defaultArtwork} />
+        )}
         <Text style={styles.songName}>{song.filename}</Text>
         <View style={styles.songActions}>
           <TouchableOpacity
@@ -119,6 +125,11 @@ const SongListItem: React.FC<SongListItemProps> = memo(
   ({ song, selected, toggleSongSelection, styles }) => {
     return (
       <View style={styles.songCard}>
+        {song.artwork ? (
+          <Image style={styles.songImage} source={{ uri: song.artwork }} />
+        ) : (
+          <Image style={styles.songImage} source={defaultArtwork} />
+        )}
         <Text style={styles.songCardText}>{song.filename}</Text>
         <TouchableOpacity onPress={() => toggleSongSelection(song)} style={styles.addButton}>
           <Ionicons
@@ -611,11 +622,16 @@ const styles = StyleSheet.create({
   },
   songRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 8,
     borderBottomColor: "#eee",
     borderBottomWidth: 1,
+  },
+  songImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 5,
+    marginRight: 10,
   },
   songName: {
     fontSize: 16,
@@ -653,7 +669,6 @@ const styles = StyleSheet.create({
   },
   songCard: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 10,
