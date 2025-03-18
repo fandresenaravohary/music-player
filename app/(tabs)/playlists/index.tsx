@@ -40,7 +40,7 @@ const PlaylistSongRow: React.FC<PlaylistSongRowProps> = memo(
         {song.artwork ? (
           <Image style={styles.songImage} source={{ uri: song.artwork }} />
         ) : (
-          <Image style={styles.songImage} source={defaultArtwork} />
+          <View style={styles.songImagePlaceholder} />
         )}
         <Text style={styles.songName}>{song.filename}</Text>
         <View style={styles.songActions}>
@@ -128,7 +128,7 @@ const SongListItem: React.FC<SongListItemProps> = memo(
         {song.artwork ? (
           <Image style={styles.songImage} source={{ uri: song.artwork }} />
         ) : (
-          <Image style={styles.songImage} source={defaultArtwork} />
+          <View style={styles.songImagePlaceholder} />
         )}
         <Text style={styles.songCardText}>{song.filename}</Text>
         <TouchableOpacity onPress={() => toggleSongSelection(song)} style={styles.addButton}>
